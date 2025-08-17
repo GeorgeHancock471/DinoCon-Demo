@@ -1,0 +1,7 @@
+Target=	DE_Rex
+blank
+blank
+blank
+blank
+blank
+ColourSpace =		0	100	-20	20	-5	30

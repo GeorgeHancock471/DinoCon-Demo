@@ -1,0 +1,285 @@
+
+// Directory
+//...............................................................................
+
+
+PopLocal = getDirectory("plugins") + "2 CamoReq/PopLocation.txt";
+PopLocation = File.openAsString(PopLocal);
+PopLocation=split(PopLocation, "\n");
+PopLocation = PopLocation[0];
+PopLocation = PopLocation;
+
+
+ModuleLocation = File.getParent(PopLocation);
+ConLocation = ModuleLocation + "/CON_Data/";
+
+ImgF = ConLocation + "Fitness.txt";
+
+ImgN = ConLocation + "Labels.txt";
+
+
+if(File.exists(ImgN)) File.delete(ImgN);
+if(File.exists(ImgF)) File.delete(ImgF);
+
+
+repS=1;
+
+DirectoryArray = newArray("train/","validate/","validate/","validate/","test/");
+CategoryArray = newArray("targets/","blanks/");
+
+
+
+
+for(i=0;i<DirectoryArray.length;i++){
+
+d= ConLocation+DirectoryArray[i];
+
+if(!File.exists(d)) File.makeDirectory(d);
+
+
+if(File.exists(d+CategoryArray[0])){
+
+	flist = getFileList(d+CategoryArray[0]);
+
+		for(j=0;j<flist.length;j++){
+		
+		File.delete(d+CategoryArray[0]+flist[j]);
+
+}}
+
+
+if(File.exists(d+CategoryArray[1])){
+
+	flist = getFileList(d+CategoryArray[1]);
+
+		for(j=0;j<flist.length;j++){
+		
+		File.delete(d+CategoryArray[1]+flist[j]);
+
+}}
+
+
+
+if(!File.exists(d+CategoryArray[0])) File.makeDirectory(d+CategoryArray[0]);
+if(!File.exists(d+CategoryArray[1])) File.makeDirectory(d+CategoryArray[1]);
+}
+
+
+
+// Scales
+//...............................................................................
+
+
+cropScale = 1000;
+saveScale = 256;
+
+//Close
+
+
+
+// Clear
+//...............................................................................
+
+close("*");
+
+setBatchMode(true);
+
+while(roiManager("count")>0){
+roiManager("Select", Array.getSequence(roiManager("count")));
+roiManager("delete");
+}
+
+
+
+// Generations
+//...............................................................................
+
+
+CheckDirectory = PopLocation;
+GeneratArray = newArray();
+GeneratList  =  getFileList(CheckDirectory);
+
+
+
+
+for(i=0; i<GeneratList.length; i++) { // list all .txt files
+	if(endsWith(GeneratList[i], "_ranks.txt")==1)
+		GeneratArray = Array.concat(GeneratArray, GeneratList[i]);
+}
+
+ArrayLeng = lengthOf(GeneratArray);
+
+csv = ".txt";
+tif = ".tif";
+txt = ".txt";
+png = ".png";
+
+GenNumber = ArrayLeng;
+GenNum = CheckDirectory + "gen_" + GenNumber + "_genes" + txt;
+GenName = "gen_" + GenNumber  + "_genes" +  txt;
+SurvGenNum = CheckDirectory + "gen_" + GenNumber +"_ranks" + txt;
+
+
+GenStr = File.openAsString(GenNum);
+GenArr = split(GenStr, "\n");
+GenRand = newArray(GenArr.length);
+
+
+patDIR =CheckDirectory+"GenPat_"+GenNumber+"/";
+
+
+// Backgrounds
+//...............................................................................
+
+
+BgDirectory = CheckDirectory+"Backgrounds/";
+
+File.openSequence(BgDirectory);
+
+bgW = getWidth();
+bgH = getHeight();
+bgS = nSlices();
+
+
+// Target ROI
+//...............................................................................
+
+t = split(GenArr[1], "\t");
+open(patDIR+t[0]+".tif");
+run("Select None");
+run("32-bit");
+setThreshold(1,255);
+run("Create Selection");
+roiManager("Add");
+close();
+
+
+
+
+idArray=newArray((GenArr.length-1)*repS);
+imgArray=newArray((GenArr.length-1)*repS);
+
+
+
+
+// Create Replicates of Targets
+//...............................................................................
+
+
+
+c=0;
+
+
+GenRand[0] = "ID"+"\t"+"Fitness";
+for(j=1;j<GenRand.length;j++){
+t = split(GenArr[j], "\t");
+
+open(patDIR+t[0]+".tif");
+//roiManager("Select",0);
+
+run("Select All");
+run("Copy");
+
+	
+
+setPasteMode("Transparent-zero");
+close();
+
+
+
+for(d =0;d<DirectoryArray.length;d++){
+
+	//Random Crop Backgrounds
+	//~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	selectImage("Backgrounds");
+	r=1+(random()*bgS);
+	setSlice(r);
+	x=random()*(bgW-cropScale);
+	y=random()*(bgH-cropScale);
+
+	makeRectangle(x,y,cropScale,cropScale);
+	run("Duplicate...", "title=Crop");
+	
+	run("Select None");
+	
+	run("Duplicate...", " ");
+	run("Size...", "width=&saveScale height=&saveScale depth=1 constrain average interpolation=Bilinear");
+	run("Add Specified Noise...", "standard=0.1");
+
+	saveAs("Jpeg",  ConLocation+DirectoryArray[d]+CategoryArray[1]+j+"-"+d+".jpg");
+	close();
+
+
+	selectImage("Crop");
+	//roiManager("Select",0);
+	makeRectangle(300,300,400,400);
+	run("Paste");
+	
+	
+	run("Select None");
+	
+	
+	run("Size...", "width=&saveScale height=&saveScale depth=1 constrain average interpolation=Bilinear");
+	saveAs("Jpeg",  ConLocation+DirectoryArray[d]+CategoryArray[0]+j+"-"+d+".jpg");
+	close();
+
+
+	if(DirectoryArray[d]==DirectoryArray[DirectoryArray.length-1]){
+	ttl=toString(j)+"-"+d-1+".jpg";
+
+	idArray[c] = t[0];
+	imgArray[c] = ttl;
+	
+	c+=1;
+	}
+
+
+}
+
+
+
+
+}//(target loop)
+
+
+
+pasteArray=newArray(imgArray.length);
+
+
+for(i=0;i<pasteArray.length;i++){
+
+pasteArray[i] = imgArray[i]+"\t"+idArray[i];
+
+}
+
+
+titleArray=newArray("Img","ID");
+pasteArray=Array.concat(String.join(titleArray,"\t"),pasteArray);
+
+
+
+
+	dataFile = File.open(ImgN);
+	for(i=0;i<pasteArray.length;i++){
+		print(dataFile, pasteArray[i]);
+	}		
+	File.close(dataFile);
+	
+	
+	print("DONE");
+	
+	
+
+run("Run Convolution Function");
+
+
+
+while(!File.exists(ImgF)){
+
+wait(2000);
+
+}
+
+
+waitForUser("Done");

@@ -1,0 +1,183 @@
+PopLocal = getDirectory("plugins") + "2 CamoReq/PopLocation.txt";
+PopLocation = File.openAsString(PopLocal);
+PopLocation=split(PopLocation, "\n");
+PopLocation = PopLocation[0];
+PopLocation = PopLocation;
+
+setBatchMode(true);
+
+CheckDirectory = PopLocation;
+
+GeneratArray = newArray();
+
+GeneratList  =  getFileList(CheckDirectory);
+
+run("ROI Manager...");
+
+
+
+
+for(i=0; i<GeneratList.length; i++) { // list all .txt files
+
+	if(endsWith(GeneratList[i], "_ranks.txt")==1)
+
+		GeneratArray = Array.concat(GeneratArray, GeneratList[i]);
+}
+
+
+SceneDirectory = CheckDirectory+"Scenes/";
+SceneFolder = getFileList(SceneDirectory);
+SceneList = newArray();
+
+for(j=0;j<SceneFolder.length;j++){
+if(endsWith(SceneFolder[j],"scene.tif")) SceneList = Array.concat(SceneList,SceneFolder[j]);
+}
+
+
+
+
+
+close("*");
+
+
+
+
+while(roiManager("count")>0){
+roiManager("select",0);
+roiManager("Delete");
+}
+
+ArrayLeng = lengthOf(GeneratArray);
+
+csv = ".txt";
+tif = ".tif";
+txt = ".txt";
+png = ".png";
+
+GenNumber = ArrayLeng;
+GenNum = CheckDirectory + "gen_" + GenNumber + "_genes" + txt;
+GenName = "gen_" + GenNumber  + "_genes" +  txt;
+SurvGenNum = CheckDirectory + "gen_" + GenNumber +"_ranks" + txt;
+
+
+GenStr = File.openAsString(GenNum);
+GenArr = split(GenStr, "\n");
+GenRand = newArray(GenArr.length);
+
+
+
+patDIR =CheckDirectory+"GenPat_"+GenNumber+"/";
+
+
+
+GenRand[0] = "ID"+"\t"+"Fitness"+"\t"+"Background"+"\t"+"SL"+"\t"+"SA"+"\t"+"SB";
+for(j=1;j<GenRand.length;j++){
+close("*");
+t = split(GenArr[j], "\t");
+
+SCENE = SceneList[floor((SceneList.length-0.00001)*random())];
+open(SceneDirectory + SCENE);
+rename("Scene"); 
+run("To ROI Manager");
+open(patDIR+t[0]+".tif");
+rename("Pattern"); 
+
+run("DinoEvo Combine Scene & Pattern");
+
+	run("sRGB to linRGB");
+	tID = getImageID();
+	run("Add...", "value=0.01 stack"); // ensure no zeros
+	run("Michelson opponent B");
+	rmID = getImageID(); // relative modulation ID
+	selectImage(tID);
+	close();
+	selectImage(rmID);
+	
+	w1=getWidth();
+	h1=getHeight();
+
+setBatchMode("show");
+
+//Lum
+
+	selectImage(rmID);
+	setSlice(1);
+	run("Duplicate...", "title=Temp");
+
+	run("Run SBL Model Sal Auto", "model_=[Chicken 16cmd2 GaborIso 2 Woodland] luminance_channel=Lum scaling_method=[Angular width of image (degrees)] scale_unit=40 salience");
+	close("Pooled Image");
+	run("Enhance Contrast...", "saturated=0.35 normalize");
+
+	w2=getWidth();
+	h2=getHeight();
+
+	s = w2/w1;
+	roiManager("select",0);
+	run("Scale... ", "x=s y=s");
+	roiManager("Add");
+
+	roiManager("select",roiManager("count")-1);
+
+	SL = getValue("Mean")*3; print("SL", SL);
+	close();
+	close();
+	close("Temp");
+	
+	setBatchMode(false);
+	setBatchMode(true);
+
+
+//RG
+
+	selectImage(rmID);
+	run("Size...", "width=w2 height=h2 depth=3 average interpolation=Bilinear");
+	
+	setSlice(2);
+	run("Hancock Salience");
+	run("Enhance Contrast...", "saturated=0.35 normalize");
+	roiManager("select",roiManager("count")-1);
+
+	SA = getValue("Mean"); print("SA", SA);
+	close();
+
+
+	
+//YB
+
+	selectImage(rmID);
+
+	setSlice(3);
+	run("Hancock Salience");
+	run("Enhance Contrast...", "saturated=0.35 normalize");
+	roiManager("select",roiManager("count")-1);
+
+	SB = getValue("Mean"); print("SB", SB);
+	close();
+
+
+
+
+setBatchMode(true);
+
+
+while(roiManager("count") > 0){
+	roiManager("select", 0);
+	roiManager("Delete");
+}
+run("Select None");
+
+
+GenRand[j] = t[0]+"\t"+-SL-pow(pow(SA,2)+pow(SB,2),0.5)+"\t"+SCENE+"\t"+SL+"\t"+SA+"\t"+SB;
+
+close("*");
+}
+
+
+
+
+
+dataFile = File.open(SurvGenNum);
+for(i=0;i<GenRand.length;i++){
+	print(dataFile, GenRand[i]);
+}		
+File.close(dataFile);

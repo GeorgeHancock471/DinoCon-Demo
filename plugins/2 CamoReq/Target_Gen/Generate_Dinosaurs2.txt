@@ -1,0 +1,957 @@
+/*____________________________________________________________________
+
+	Title: Generate Dinosaurs
+	Authors:  Jolyon Troscianko and George Hancock 
+	Date: 27/01/2021
+	
+.................................................................................................................
+
+Description:
+''''''''''''''''''''''''''''''''
+Generates the Animal pattern target phenotype. The pattern generation system was coded by Jolyon Troscianko. The target shape and gene string code was made by George Hancock.
+
+*/
+
+
+setBatchMode(true);
+
+
+
+// TestPoint
+//---------------------------------------------------
+// Allows you to obtain the index of a Value within an Array.
+
+function TestPoint(Title) {
+Dialog.createNonBlocking("TestPoint");
+Dialog.createNonBlocking("Did " + Title + " work?");
+Dialog.show();
+
+}
+
+
+
+// Index
+//---------------------------------------------------
+// Allows you to obtain the index of a Value within an Array.
+
+  function index(a, value) {
+      for (i=0; i<a.length; i++)
+          if (a[i]==value) return i;
+      return -1;
+  }
+
+
+function TestPoint(num) {
+Dialog.createNonBlocking(num);
+Dialog.show();
+}
+
+
+PopLocal = getDirectory("plugins") + "2 CamoReq/PopLocation.txt";
+PopLocation = File.openAsString(PopLocal);
+PopLocation=split(PopLocation, "\n");
+PopLocation = PopLocation[0];
+PopLocation = PopLocation;
+
+PopulationSet = PopLocation+"Settings_Population.txt";
+PopulationSettings = File.openAsString(PopulationSet );
+PopulationSettings = split(PopulationSettings, "\n");
+
+
+ColourSpace = split(PopulationSettings[6], "\t");
+
+lMinR = 1;
+lMaxR =  100;
+
+aMinR =  parseFloat(ColourSpace[3]);
+aMaxR =  parseFloat(ColourSpace[4])-aMinR;
+
+bMinR =  parseFloat(ColourSpace[5]);
+bMaxR =  parseFloat(ColourSpace[6])-bMinR;
+
+
+TargetSet = split(PopulationSettings[0],"\t");
+TargetSetting = TargetSet[1];
+
+
+TargetChoice = TargetSetting;
+
+TargetDirectory = getDirectory("plugins")+ "1 CamoEvo/Targets/";
+
+TargetSettings = File.openAsString(TargetDirectory+"Target_Settings.txt");
+
+TargetSettingsRows = split(TargetSettings, "\n");
+
+
+
+for(i=0; i<TargetSettingsRows.length; i++){
+temp = TargetSettingsRows[i];
+
+if(startsWith(temp, TargetChoice)){
+TargetSetting = temp;
+}
+
+}
+
+
+
+TargetChoiceSettings = split(TargetSetting, "\t");
+TargetChoiceShape = TargetChoiceSettings[1];
+TargetChoiceCentre = parseFloat(TargetChoiceSettings[4]);
+TargetChoiceShader = parseFloat(TargetChoiceSettings[7]);
+TargetChoiceDetail = parseFloat(TargetChoiceSettings[8]);
+TargetChoicePattern = TargetChoiceSettings[9];
+
+
+PatternTemplate = getDirectory("plugins") + "2 CamoReq/PatternTemplate.txt";
+
+GenesString=File.openAsString(PatternTemplate);	// open txt data file
+GenesRows=split(GenesString, "\n");
+
+
+
+Temp = split(GenesRows[0],"\t");
+v0=index(Temp, "ID");
+
+
+
+//Directories
+DinoEvo = "C:/Users/Localadmin_hangeorg/Documents/CamoEvo_CNN/TENSORFLOW_CamoEvo/ImageJ - DinoEvo/plugins/DinoEvo_Project/";
+Dino ="/Tyrannosaurus/";
+
+ReactDiffusion = getDirectory("plugins") + "2 CamoReq/Patterns/Pattern3001.png";
+
+if(!isOpen("ReactDiffusion")){
+open(ReactDiffusion);
+rename("ReactDiffusion");
+run("32-bit");
+run("Enhance Contrast...", "saturated=0.35 normalize");
+}
+
+SpecklingSheet = getDirectory("plugins") + "2 CamoReq//Patterns/speckle1.tif";
+if(!isOpen("SpecklingSheet")){
+open(SpecklingSheet);
+rename("SpecklingSheet");
+m=getValue("Mean");
+s=getValue("StdDev");
+run("Subtract...","value=m");
+run("Multiply...","value=s");
+}
+
+
+
+
+
+//Modify Phenotype Ranges
+//=============================================================
+phenoRangeDIR = PopLocation+"Transform_PhenotypeRanges.txt";
+
+if(File.exists(phenoRangeDIR)){
+
+
+phenoRangeSTR = File.openAsString(phenoRangeDIR );
+phenoRangeARR = split(phenoRangeSTR,"\n");
+phenoRangeMIN =  split(phenoRangeARR[1],"\t");
+phenoRangeMAX =  split(phenoRangeARR[2],"\t");
+
+	for(i=1;i<GenesRows.length;i++){	
+	tArr = split(GenesRows[i],"\t");
+	for(j=4;j<Temp.length;j++){
+	tV = parseFloat(tArr[j]);
+	tMx =  parseFloat(phenoRangeMAX[j]);
+	tMn =  parseFloat(phenoRangeMIN[j]);
+	tArr[j] = tV *(tMx-tMn) + tMn;
+	if(isNaN(tArr[j])) TestPoint("Error NaN");
+	}
+	GenesRows[i] = String.join(tArr,"\t");
+	}
+}
+
+
+//--------------------------
+//Extract gene indexes
+//--------------------------
+v1 = index(Temp, "pat_hed_xcd");
+v2 = index(Temp, "pat_hed_ycd");
+v3 = index(Temp, "pat_hed_scv");
+v4 = index(Temp, "pat_hed_sch");
+v5 = index(Temp, "pat_ctr_xcd");
+v6 = index(Temp, "pat_ctr_ycd");
+v7 = index(Temp, "pat_ctr_scv");
+v8 = index(Temp, "pat_ctr_sch");
+v9 = index(Temp, "pat_tal_xcd");
+v10 = index(Temp, "pat_tal_ycd");
+v11 = index(Temp, "pat_tal_scv");
+v12 = index(Temp, "pat_tal_sch");
+v13 = index(Temp, "pat_scl_thr");
+v14 = index(Temp, "col_hed_lmv");
+v15 = index(Temp, "col_hed_rgv");
+v16 = index(Temp, "col_hed_byv");
+v17 = index(Temp, "col_ctr_lmv");
+v18 = index(Temp, "col_ctr_rgv");
+v19 = index(Temp, "col_ctr_byv");
+v20 = index(Temp, "col_tal_lmv");
+v21 = index(Temp, "col_tal_rgv");
+v22 = index(Temp, "col_tal_byv");
+v23 = index(Temp, "col_mac_lmv");
+v24 = index(Temp, "col_mac_rgv");
+v25 = index(Temp, "col_mac_byv");
+v26 = index(Temp, "col_shd_lmv");
+v27 = index(Temp, "col_shd_rgv");
+v28 = index(Temp, "col_shd_byv");
+v29 = index(Temp, "grd_hed_rad");
+v30 = index(Temp, "grd_hed_ycd");
+v31 = index(Temp, "grd_hed_sig");
+v32 = index(Temp, "grd_hed_val");
+v33 = index(Temp, "grd_ctr_rad");
+v34 = index(Temp, "grd_ctr_ycd");
+v35 = index(Temp, "grd_ctr_sig");
+v36 = index(Temp, "grd_ctr_val");
+v37 = index(Temp, "grd_tal_rad");
+v38 = index(Temp, "grd_tal_ycd");
+v39 = index(Temp, "grd_tal_sig");
+v40 = index(Temp, "grd_tal_val");
+v41 = index(Temp, "csd_grd_sig");
+v42 = index(Temp, "csd_grd_thr");
+v43 = index(Temp, "eem_int_lvl");
+v44 = index(Temp, "eem_int_rto");
+v45 = index(Temp, "eem_sig_lvl");
+v46 = index(Temp, "eem_sig_rto");
+v47 = index(Temp, "eem_exp_lvl");
+v48 = index(Temp, "eem_exp_rto");
+v49 = index(Temp, "spk_hed_lvl");
+v50 = index(Temp, "spk_hed_sig");
+v51 = index(Temp, "spk_tal_lvl");
+v52 = index(Temp, "spk_tal_sig");
+
+
+for(j = 0; j<GenesRows.length-1; j++){
+setBatchMode(true);
+
+
+
+chromosomeArray = split(GenesRows[j+1],"\t");
+
+
+
+while(roiManager("count") > 0){
+	roiManager("select", 0);
+	roiManager("Delete");
+}
+
+
+
+
+
+
+
+
+
+if(isOpen("Output")) close("Output");
+
+setBatchMode(true);
+
+
+//Traits
+//...............................................................................................
+
+pat_hed_xcd = parseFloat(chromosomeArray[v1]);
+pat_hed_ycd = parseFloat(chromosomeArray[v2]);
+pat_hed_scv = parseFloat(chromosomeArray[v3]);
+pat_hed_sch = parseFloat(chromosomeArray[v4]);
+pat_ctr_xcd = parseFloat(chromosomeArray[v5]);
+pat_ctr_ycd = parseFloat(chromosomeArray[v6]);
+pat_ctr_scv = parseFloat(chromosomeArray[v7]);
+pat_ctr_sch = parseFloat(chromosomeArray[v8]);
+pat_tal_xcd = parseFloat(chromosomeArray[v9]);
+pat_tal_ycd = parseFloat(chromosomeArray[v10]);
+pat_tal_scv = parseFloat(chromosomeArray[v11]);
+pat_tal_sch = parseFloat(chromosomeArray[v12]);
+pat_scl_thr = parseFloat(chromosomeArray[v13]);
+col_hed_lmv = parseFloat(chromosomeArray[v14]);
+col_hed_rgv = parseFloat(chromosomeArray[v15]);
+col_hed_byv = parseFloat(chromosomeArray[v16]);
+col_ctr_lmv = parseFloat(chromosomeArray[v17]);
+col_ctr_rgv = parseFloat(chromosomeArray[v18]);
+col_ctr_byv = parseFloat(chromosomeArray[v19]);
+col_tal_lmv = parseFloat(chromosomeArray[v20]);
+col_tal_rgv = parseFloat(chromosomeArray[v21]);
+col_tal_byv = parseFloat(chromosomeArray[v22]);
+col_mac_lmv = parseFloat(chromosomeArray[v23]);
+col_mac_rgv = parseFloat(chromosomeArray[v24]);
+col_mac_byv = parseFloat(chromosomeArray[v25]);
+col_shd_lmv = parseFloat(chromosomeArray[v26]);
+col_shd_rgv = parseFloat(chromosomeArray[v27]);
+col_shd_byv = parseFloat(chromosomeArray[v28]);
+grd_hed_rad = parseFloat(chromosomeArray[v29]);
+grd_hed_ycd = parseFloat(chromosomeArray[v30]);
+grd_hed_sig = parseFloat(chromosomeArray[v31]);
+grd_hed_val = parseFloat(chromosomeArray[v32]);
+grd_ctr_rad = parseFloat(chromosomeArray[v33]);
+grd_ctr_ycd = parseFloat(chromosomeArray[v34]);
+grd_ctr_sig = parseFloat(chromosomeArray[v35]);
+grd_ctr_val = parseFloat(chromosomeArray[v36]);
+grd_tal_rad = parseFloat(chromosomeArray[v37]);
+grd_tal_ycd = parseFloat(chromosomeArray[v38]);
+grd_tal_sig = parseFloat(chromosomeArray[v39]);
+grd_tal_val = parseFloat(chromosomeArray[v40]);
+csd_grd_sig = parseFloat(chromosomeArray[v41]);
+csd_grd_thr = parseFloat(chromosomeArray[v42]);
+eeGB=parseFloat(chromosomeArray[v43]);
+eeGR=parseFloat(chromosomeArray[v44]);
+eePB=parseFloat(chromosomeArray[v45]);
+eePR=parseFloat(chromosomeArray[v46]);
+eeIB=parseFloat(chromosomeArray[v47]);
+eeIR=parseFloat(chromosomeArray[v48]);
+
+spk_hed_sig=parseFloat(chromosomeArray[v49]);
+spk_hed_lvl=parseFloat(chromosomeArray[v50]);
+spk_tal_sig=parseFloat(chromosomeArray[v51]);
+spk_tal_lvl=parseFloat(chromosomeArray[v52]);
+
+
+
+eeWB=0.5;
+eeVB=0.5;
+
+//Images
+//...............................................................................................
+if(isOpen("Pat1")) close("Pat1");
+
+
+Mask = DinoEvo+Dino+"Mask.png";
+if(!isOpen("Mask")){
+open(Mask);
+rename("Mask");
+run("32-bit");
+}
+selectImage("Mask");
+w=getWidth();
+h=getHeight();
+
+w15 = w*1.5;
+h15 = h*1.5;
+
+run("Divide...","value=255");
+run("Copy"); setPasteMode("Multiply");
+
+selectImage("SpecklingSheet");
+makeRectangle(0,0,w15,h15);
+run("Crop");
+
+
+
+Curve = DinoEvo+Dino+"Curve.png";
+if(!isOpen("Curve")){
+open(Curve);
+rename("Curve");
+run("32-bit");
+}
+selectImage("Curve");
+setThreshold(255,255);
+run("Create Selection");
+Roi.getContainedPoints(cx,cy);
+Array.getStatistics(cy, cmin, cmax, cmean, stdDev);
+
+
+while(roiManager("count")>0){
+roiManager("select",0); roiManager("delete");
+run("Select None");
+}
+
+if(isOpen("Shade")) close("Shade");
+Shade = DinoEvo+Dino+"ShadeMap_Tyrannosaurus.tif";
+open(Shade);
+rename("Shade");
+run("To ROI Manager");
+
+
+//Adjust traits
+//...............................................................................................
+
+//Colouration
+col_ctr_lmv =lMinR+col_ctr_lmv*lMaxR;
+col_ctr_rgv = aMinR+col_ctr_rgv*aMaxR;
+col_ctr_byv = bMinR+col_ctr_byv*bMaxR;
+
+col_mac_lmv = (lMinR+col_mac_lmv*lMaxR)   -  col_ctr_lmv;
+col_mac_rgv = (aMinR+col_mac_rgv*aMaxR) - col_ctr_rgv;
+col_mac_byv = (bMinR+col_mac_byv*bMaxR) - col_ctr_byv;
+
+col_shd_lmv = (lMinR+col_shd_lmv*lMaxR)   -  col_ctr_lmv;
+col_shd_rgv = (aMinR+col_shd_rgv*aMaxR) - col_ctr_rgv;
+col_shd_byv = (bMinR+col_shd_byv*bMaxR) - col_ctr_byv;
+
+col_hed_lmv =(lMinR+col_hed_lmv*lMaxR)   -  col_ctr_lmv;
+col_hed_rgv = (aMinR+col_hed_rgv*aMaxR) - col_ctr_rgv;
+col_hed_byv = (bMinR+col_hed_byv*bMaxR) - col_ctr_byv;
+
+col_tal_lmv = (lMinR+col_tal_lmv*lMaxR)   -  col_ctr_lmv;
+col_tal_rgv = (aMinR+col_tal_rgv*aMaxR) - col_ctr_rgv;
+col_tal_byv = (bMinR+col_tal_byv*bMaxR) - col_ctr_byv;
+
+
+//Pattern Shape
+pat_hed_scv = w*(0.1+pat_hed_scv*5);
+pat_hed_sch = w*(0.1+pat_hed_sch*5);
+pat_hed_xcd = pat_hed_xcd*(3000-pat_hed_sch);
+pat_hed_ycd = pat_hed_ycd*(3000-pat_hed_scv);
+
+pat_ctr_scv = w*(0.1+pat_ctr_scv*5);
+pat_ctr_sch = w*(0.1+pat_ctr_sch*5);
+pat_ctr_xcd = pat_ctr_xcd*(3000-pat_ctr_sch);
+pat_ctr_ycd = pat_ctr_ycd*(3000-pat_ctr_scv);
+
+pat_tal_scv = w*(0.1+pat_tal_scv*5);
+pat_tal_sch = w*(0.1+pat_tal_sch*5);
+pat_tal_xcd = pat_tal_xcd*(3000-pat_tal_sch);
+pat_tal_ycd = pat_tal_ycd*(3000-pat_tal_scv);
+
+
+
+//Gradient
+grd_hed_rad = w/8+grd_hed_rad*w*3/8;
+grd_hed_ycd = grd_hed_ycd*h15;
+grd_hed_sig = 20+grd_hed_sig *w/4;
+grd_hed_val = grd_hed_val *2;
+
+grd_ctr_rad = grd_ctr_rad*w/3;
+grd_ctr_ycd = grd_ctr_ycd*h15;
+grd_ctr_sig = 6+grd_ctr_sig *w/4;
+grd_ctr_val = -1+grd_ctr_val *2;
+
+grd_tal_rad = w/8+grd_tal_rad*w*3/8;
+grd_tal_ycd = grd_tal_ycd*h15;
+grd_tal_sig = 20+grd_tal_sig *w/4;
+grd_tal_val = grd_tal_val *2;
+
+
+//Create Pattern
+//...............................................................................................
+
+if(isOpen("grad_ctr")) close("grad_ctr");
+if(isOpen("grad_hed")) close("grad_hed");
+if(isOpen("grad_tal")) close("grad_tal");
+
+// pat_ctr
+//=============
+
+if(isOpen("pat_ctr")) close("pat_ctr");
+
+selectImage("ReactDiffusion");
+makeRectangle(pat_ctr_xcd,pat_ctr_ycd,pat_ctr_sch,pat_ctr_scv);
+run("Duplicate...", "title=pat_ctr");
+
+run("Size...", "width=w height=h15 depth=1 interpolation=Bilinear");
+run("Enhance Contrast...", "saturated=0.35 normalize");
+
+
+//Gradient Center
+
+run("Select All");
+run("Duplicate...", "title=Gradient");
+run("Set...","value=0.5");
+makeOval(w/2-grd_ctr_rad*1.5,grd_ctr_ycd-grd_ctr_rad,grd_ctr_rad*2.5,grd_ctr_rad*2);
+run("Set...","value=&grd_ctr_val");
+run("Select None");
+selectImage("SpecklingSheet"); run("Duplicate...", "title=temp"); run("Multiply...","value=0.2"); run("Copy"); setPasteMode("Add"); close();
+selectImage("Gradient"); run("Paste");
+run("Gaussian Blur...", "sigma=&grd_ctr_sig");
+run("Enhance Contrast...", "saturated=0.35 normalize");
+run("Copy"); setPasteMode("Multiply"); close();
+selectImage("pat_ctr");
+run("Paste");
+
+
+
+//run("Paste");
+
+// pat_hed
+//===========
+
+if(isOpen("pat_hed")) close("pat_hed");
+
+selectImage("ReactDiffusion");
+makeRectangle(pat_hed_xcd,pat_hed_ycd,pat_hed_sch,pat_hed_scv);
+run("Duplicate...", "title=pat_hed");
+
+run("Size...", "width=w height=h15 depth=1 interpolation=Bilinear");
+run("Enhance Contrast...", "saturated=0.35 normalize");
+
+run("Select None");
+run("Duplicate...", "title=grad_hed");
+run("Select All");
+run("Set...","value=0");
+makeOval(-grd_hed_rad,grd_hed_ycd-grd_hed_rad/2,grd_hed_rad*2,grd_hed_rad*2);
+run("Set...","value=1");
+run("Select None");
+run("Gaussian Blur...", "sigma=&grd_hed_sig");
+selectImage("grad_hed");
+run("Select None");
+run("Gaussian Blur...", "sigma=1");
+run("Copy"); setPasteMode("Multiply");
+
+selectImage("pat_hed");
+
+
+
+run("Select All");
+run("Paste");
+
+selectImage("grad_hed");
+run("Select None");
+run("Multiply...","value=-1");
+run("Add...","value=1");
+run("Copy"); setPasteMode("Multiply");
+run("Multiply...","value=-1");
+run("Add...","value=1");
+
+selectImage("pat_ctr");
+run("Select None");
+run("Paste");
+selectImage("pat_hed");
+
+run("Copy"); setPasteMode("Add");
+
+selectImage("pat_ctr");
+run("Paste");
+close("pat_hed");
+
+
+
+
+// pat_tal
+//===========
+
+if(isOpen("pat_tal")) close("pat_tal");
+
+selectImage("ReactDiffusion");
+makeRectangle(pat_tal_xcd,pat_tal_ycd,pat_tal_sch,pat_tal_scv);
+run("Duplicate...", "title=pat_tal");
+
+run("Size...", "width=w height=h15 depth=1 interpolation=Bilinear");
+run("Enhance Contrast...", "saturated=0.35 normalize");
+
+run("Select None");
+run("Duplicate...", "title=grad_tal");
+run("Select All");
+run("Set...","value=0");
+makeOval(w15-grd_tal_rad,grd_tal_ycd-grd_tal_rad/2,grd_tal_rad*2,grd_tal_rad*2);
+run("Set...","value=1");
+run("Select None");
+run("Gaussian Blur...", "sigma=&grd_tal_sig");
+run("Select None");
+run("Gaussian Blur...", "sigma=1");
+run("Copy"); setPasteMode("Multiply");
+
+
+
+
+selectImage("pat_tal");
+run("Select All");
+run("Paste");
+
+
+
+selectImage("grad_tal");
+run("Select None");
+run("Multiply...","value=-1");
+run("Add...","value=1");
+run("Copy"); setPasteMode("Multiply");
+run("Multiply...","value=-1");
+run("Add...","value=1");
+
+selectImage("pat_ctr");
+run("Select None");
+run("Paste");
+selectImage("pat_tal");
+
+run("Copy"); setPasteMode("Add");
+
+selectImage("pat_ctr");
+run("Paste");
+close("pat_tal");
+
+
+
+
+
+run("Select None");
+run("Gaussian Blur 3D...", "x=1.5 y=1.5 z=2");
+
+
+for(i=0;i<cx.length;i++){
+makeRectangle(cx[i],0,1,h15);
+ty = cy[i]-cmean;
+run("Translate...", "x=0 y=ty interpolation=None");
+}
+run("Canvas Size...", "width=w height=h position=Center zero");
+run("Select None");
+
+rename("Patterning");
+
+
+
+
+
+DemoShade = DinoEvo+Dino+"Demo.tif";
+if(!isOpen("DemoShade")){
+open(DemoShade);
+rename("DemoShade");
+setThreshold(0,0);
+run("Create Selection");
+run("Make Inverse");
+roiManager("add");
+}
+
+
+selectImage("Patterning");
+roiManager("select",roiManager("count")-1);
+getStatistics(area, mean, min, max);
+nBins = 100000;
+getHistogram(values, counts, nBins, min, max);
+
+count = 0;
+tVal = 1;
+target = area*(1-pat_scl_thr);
+for(i=0; i<nBins; i++){
+	count += counts[i];
+	if(count >= target){
+		tVal = values[i];
+		i = nBins;
+	}
+}
+
+tValOld=tVal;
+maxOld=max;
+setThreshold(tVal, max);
+run("Create Selection");
+run("Set...","value=1");
+run("Make Inverse");
+run("Set...","value=0");
+run("Select None");
+
+
+//Countershading
+//...............................................................................................
+if(isOpen("Countershading")) close("Countershading");
+
+selectImage("Shade");
+run("Duplicate...", "title=t");
+run("32-bit");
+run("Enhance Contrast...", "saturated=0.35 normalize");
+setThreshold(0,csd_grd_thr);
+run("Create Selection");
+run("Set...","value=0.5");
+run("Make Inverse");
+run("Set...","value=1");
+run("Select None");
+
+
+
+G=csd_grd_sig*40;
+run("Gaussian Blur...", "sigma=G");
+
+roiManager("select",0);
+v=getValue("Min");
+run("Add...","value=v");
+run("Add...","value=v");
+run("Divide...","value=3");
+run("Select None");
+
+run("Gaussian Blur...", "sigma=5");
+run("Enhance Contrast...", "saturated=0.35 normalize");
+run("Multiply...","value=-1");
+run("Add...","value=1");
+rename("Countershading");
+
+
+
+//Colouration
+//...............................................................................................
+run("Duplicate...", "title=col ignore");
+run("Add Slice");run("Add Slice");
+
+setSlice(1); run("Set...","value=col_ctr_lmv");
+setSlice(2); run("Set...","value=col_ctr_rgv"); 
+setSlice(3); run("Set...","value=col_ctr_byv");
+
+
+selectImage("grad_tal");run("Enhance Contrast...", "saturated=0.35 normalize");
+selectImage("SpecklingSheet"); 
+run("Duplicate...", "title=temp"); 
+R=spk_tal_sig*3;
+run("Gaussian Blur...", "sigma=&R"); 
+R=spk_tal_lvl*0.1;
+D=getValue("StdDev");
+run("Divide...","value=D");
+run("Multiply...","value=R"); 
+run("Add...","value=0");
+run("Copy"); setPasteMode("Add"); close();
+selectImage("grad_tal"); run("Paste");
+
+selectImage("grad_tal"); 
+run("32-bit");run("Copy");setPasteMode("Copy");
+run("Add Slice"); run("Paste");
+run("Add Slice"); run("Paste");
+setSlice(1);run("Multiply...","value=col_tal_lmv slice"); 
+setSlice(2); run("Multiply...","value=col_tal_rgv slice");  
+setSlice(3); run("Multiply...","value=col_tal_byv slice");  
+
+
+
+imageCalculator("Add stack", "col","grad_tal");close("grad_tal");
+
+
+selectImage("grad_hed");run("Enhance Contrast...", "saturated=0.35 normalize");
+selectImage("SpecklingSheet"); 
+run("Duplicate...", "title=temp"); 
+R=spk_hed_sig*3;
+run("Gaussian Blur...", "sigma=&R"); 
+R=spk_hed_lvl*0.1;
+
+D=getValue("StdDev");
+run("Divide...","value=D");
+run("Multiply...","value=R"); 
+run("Add...","value=0");
+run("Copy"); setPasteMode("Add"); close();
+selectImage("grad_hed"); run("Paste");
+
+
+selectImage("grad_hed");
+run("32-bit");run("Copy");setPasteMode("Copy");
+run("Add Slice"); setSlice(nSlices); run("Paste");
+run("Add Slice");setSlice(nSlices); run("Paste");
+setSlice(1);run("Multiply...","value=col_hed_lmv slice");
+setSlice(2); run("Multiply...","value=col_hed_rgv slice"); 
+setSlice(3); run("Multiply...","value=col_hed_byv slice");
+
+imageCalculator("Add stack", "col","grad_hed");close("grad_hed");
+
+
+run("Duplicate...", "title=eeAdd ignore");
+
+selectImage("Countershading");
+run("32-bit");run("Copy");setPasteMode("Copy");
+run("Add Slice"); setSlice(nSlices); run("Paste");
+run("Add Slice");setSlice(nSlices); run("Paste");
+
+
+setSlice(1);run("Multiply...","value=col_mac_lmv slice");
+setSlice(2); run("Multiply...","value=col_mac_rgv slice"); 
+setSlice(3); run("Multiply...","value=col_mac_byv slice");
+
+imageCalculator("Add stack", "col","Countershading");
+
+selectImage("Patterning");
+run("32-bit");run("Copy");setPasteMode("Copy");
+run("Add Slice"); setSlice(nSlices); run("Paste");
+run("Add Slice");setSlice(nSlices); run("Paste");
+setSlice(1);  
+setSlice(1);run("Multiply...","value=col_mac_lmv");
+setSlice(2); run("Multiply...","value=col_mac_rgv"); 
+setSlice(3); run("Multiply...","value=col_mac_byv");
+
+
+
+
+imageCalculator("Add stack", "col","Patterning");
+
+
+
+imageCalculator("Add stack", "eeAdd","Patterning");
+close("Patterning");
+
+
+selectImage("eeAdd");setSlice(1);
+getStatistics(area,mean,min,max,dev);
+
+
+
+
+//EE revised
+//....................
+
+selectImage("eeAdd");
+if(dev>0.1){
+
+eeW=0;
+eeV=0;
+for(EE=0;EE<2;EE++){
+
+
+if(EE==0){
+
+GR=1;
+PR=1;
+IR=1;
+
+if(eeGR<0.5) GR=1-pow(1-eeGR*2,2);
+if(eePR<0.5) PR=1-pow(1-eePR*2,2);
+if(eeIR<0.5) IR=1-pow(1-eeIR*2,2);
+
+}
+
+if(EE==1){
+
+GR=1;
+PR=1;
+IR=1;
+
+if(eeGR>0.5) GR=(1-pow((eeGR-0.5)*2,2));
+if(eePR>0.5) PR=(1-pow((eePR-0.5)*2,2));
+if(eeIR>0.5) IR=(1-pow((eeIR-0.5)*2,2));
+}
+
+
+
+eeG=2+pow(eeGB,3)*GR*20;
+eeP=eePB*PR;
+eeG=eeG-eeP*eeG*0.8;
+eeI=pow(eeIB*IR,1.5)*40;
+eeI=eeI+eeI*(1-eeP);
+
+
+eeW=0;
+eeV=0;
+
+
+
+selectImage("eeAdd");
+setSlice(1);
+
+
+TargetChoicePattern = "no";
+
+run("Duplicate...", " ");
+rename("EE");
+
+
+setPasteMode("Copy");
+//Blur
+run("Gaussian Blur...", "sigma=&eeG"); 
+
+//Bilateral
+if( TargetChoicePattern == "yes"){
+
+//Stretch Horizontal
+
+w2= 400+eeW*2;
+run("Scale...", "x=- y=- width=&w2 height=400 interpolation=Bilinear average create");
+
+run("Copy"); 
+close();
+run("Paste");
+
+} else{
+
+
+}
+
+
+//Translate Vertical
+run("Duplicate...", " ");
+
+
+
+run("Copy");
+close();
+run("Paste");
+run("Select None");
+
+selectImage("col");
+run("Copy"); setPasteMode("Subtract");
+selectImage("EE");
+run("Paste");
+
+run("Multiply...","value=-1");
+dev=getValue("StdDev");
+
+if(dev>0.001){
+
+if(EE==0) run("Min...","value=0");
+if(EE==1) run("Max...","value=0");
+
+run("Abs");
+
+max=getValue("Max");
+run("Divide...","value=max");
+setThreshold(0.0001,1); run("Create Selection");
+run("Macro...", "code=v=v/(abs(v)*"+eeP+"+"+1-eeP+");");
+run("Select None");
+
+max=getValue("Max");
+run("Divide...","value=max");
+
+
+if(EE==1) run("Multiply...","value=-1");
+
+
+run("Multiply...","value=&eeI ");
+
+}
+rename("EE_"+EE);
+}
+
+
+selectImage("EE_"+0);
+run("Copy"); setPasteMode("Add"); m=getValue("Mean");
+close();
+selectImage("col"); setSlice(1); if(!isNaN(m)) run("Paste");
+selectImage("EE_"+1);
+run("Copy"); setPasteMode("Add"); m=getValue("Mean");
+close();
+selectImage("col");setSlice(1); if(!isNaN(m)) run("Paste");
+}
+
+
+noiL1 = random();
+noiSP1 = random();
+noiS1 = random();
+noiP1 = random();
+cenreMod=0;
+
+
+
+
+close("eeAdd");
+//------
+
+
+//imageCalculator("Multiply stack", "col","Demo_Rex_Shade.tif");
+selectImage("col");
+run("CIELAB 32Bit to RGB24 smooth");
+rename(chromosomeArray[0]);
+
+
+
+
+imageCalculator("Multiply stack", "col","DemoShade");
+run("CIELAB 32Bit to RGB24 smooth");
+rename(chromosomeArray[0]+"_demo");
+
+
+close("Col");
+
+close("DemoShade");
+
+if(isOpen("Countershading")) close("Countershading");
+
+
+
+
+}// j nResults
+
+if(isOpen("Mask")) close("Mask");
+if(isOpen("ReactDiffusion")) close("ReactDiffusion");
+if(isOpen("Curve")) close("Curve");
+if(isOpen("Shade")) close("Shade");
+if(isOpen("DemoShade")) close("DemoShade");
+if(isOpen("SpecklingSheet")) close("SpecklingSheet");
+
+while(roiManager("count") > 0){
+	roiManager("select", 0);
+	roiManager("Delete");
+}
+run("Remove Overlay");
+run("Select All");

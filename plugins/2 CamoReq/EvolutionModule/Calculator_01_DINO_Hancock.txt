@@ -1,0 +1,225 @@
+PopLocal = getDirectory("plugins") + "2 CamoReq/PopLocation.txt";
+PopLocation = File.openAsString(PopLocal);
+PopLocation=split(PopLocation, "\n");
+PopLocation = PopLocation[0];
+PopLocation = PopLocation;
+
+//setBatchMode(true);
+
+CheckDirectory = PopLocation;
+
+GeneratArray = newArray();
+
+GeneratList  =  getFileList(CheckDirectory);
+
+run("ROI Manager...");
+
+setBatchMode(false);
+
+
+for(i=0; i<GeneratList.length; i++) { // list all .txt files
+
+	if(endsWith(GeneratList[i], "_ranks.txt")==1)
+
+		GeneratArray = Array.concat(GeneratArray, GeneratList[i]);
+}
+
+
+SceneDirectory = CheckDirectory+"Scenes/";
+SceneFolder = getFileList(SceneDirectory);
+SceneList = newArray();
+
+for(j=0;j<SceneFolder.length;j++){
+if(endsWith(SceneFolder[j],"scene.tif")) SceneList = Array.concat(SceneList,SceneFolder[j]);
+}
+
+setBatchMode(true);
+
+
+
+close("*");
+
+
+
+
+while(roiManager("count")>0){
+roiManager("select",0);
+roiManager("Delete");
+}
+
+ArrayLeng = lengthOf(GeneratArray);
+
+csv = ".txt";
+tif = ".tif";
+txt = ".txt";
+png = ".png";
+
+GenNumber = ArrayLeng;
+GenNum = CheckDirectory + "gen_" + GenNumber + "_genes" + txt;
+GenName = "gen_" + GenNumber  + "_genes" +  txt;
+SurvGenNum = CheckDirectory + "gen_" + GenNumber +"_ranks" + txt;
+
+
+GenStr = File.openAsString(GenNum);
+GenArr = split(GenStr, "\n");
+GenRand = newArray(GenArr.length);
+
+
+
+patDIR =CheckDirectory+"GenPat_"+GenNumber+"/";
+
+
+
+GenRand[0] = "ID"+"\t"+"Fitness"+"\t"+"Background"+"\t"+"S_L"+"\t"+"S_P"+"\t"+"S_E"+"\t"+"S_RG"+"\t"+"S_YB"+"\t"+"GabRat";
+for(j=1;j<GenRand.length;j++){
+close("*");
+t = split(GenArr[j], "\t");
+
+SCENE = SceneList[floor((SceneList.length-0.00001)*random())];
+open(SceneDirectory + SCENE);
+rename("Scene"); 
+run("To ROI Manager");
+open(patDIR+t[0]+".tif");
+rename("Pattern"); 
+
+run("DinoEvo Combine Scene & Pattern");
+run("Select None");
+	w1=getWidth();
+	h1=getHeight();
+	
+	w2=getWidth()/3;
+	h2=getHeight()/3;
+	run("Size...", "width=w2 height=h2 depth=1 average interpolation=Bilinear");
+
+run("Select None");
+
+roiManager("select",0);
+s = w2/w1;
+run("Scale... ", "x=s y=s");
+
+//Target ROI
+roiManager("Add");
+roiManager("select",roiManager("count")-1);
+run("Fit Rectangle");
+run("Scale... ", "x=1.50 y=2.50 centered");
+roiManager("Add");
+
+roiManager("select",newArray(roiManager("count")-2,roiManager("count")-1));
+roiManager("XOR");
+roiManager("Add");
+
+run("Lab Stack");
+rename("LAB");
+
+//SL
+selectImage("LAB");
+run("Duplicate...", "title=Temp");
+run("Enhance Contrast...", "saturated=0.35 normalize");
+setSlice(1);
+run("Hancock Salience");
+roiManager("select",roiManager("count")-3);
+V1=getValue("Mean");
+roiManager("select",roiManager("count")-1);
+V2=getValue("Mean");
+
+SL = abs(V1); print("SL", SL);
+close();
+
+//GabRat
+selectImage("Temp");
+setSlice(1);
+roiManager("select",roiManager("count")-3);
+run("GabRat Disruption", "number_of_angles=2 sigma=3 gamma=1 frequency=2 label=Combined");
+GabRat= getResult("GabRat",nResults-1);
+
+
+//SP
+selectImage("Temp");
+setSlice(1);
+run("Hancock Salience Angle");
+roiManager("select",roiManager("count")-3);
+V1=getValue("Mean");
+roiManager("select",roiManager("count")-1);
+V2=getValue("Mean");
+
+SP = abs(V1)+abs(V1-V2)*5; print("SP", SP);
+close();
+
+//SE
+selectImage("Temp");
+run("Gaussian Blur...", "sigma=2 slice");
+run("Find Edges", "slice");
+setSlice(1);
+run("Hancock Salience");
+roiManager("select",roiManager("count")-3);
+V1=getValue("Mean");
+roiManager("select",roiManager("count")-1);
+V2=getValue("Mean");
+
+SE = abs(V1-V2)*5; 
+
+roiManager("select",roiManager("count")-3);
+V1=getValue("StdDev");
+roiManager("select",roiManager("count")-1);
+V2=getValue("StdDev");
+
+SE = SE + abs(V1-V2)*5; print("SE", SE);
+
+
+close();
+close("Temp");
+
+//SRG
+selectImage("LAB");
+setSlice(2);
+run("Duplicate...", "title=Temp");
+run("Enhance Contrast...", "saturated=0.35 normalize");
+run("Hancock Salience");
+roiManager("select",roiManager("count")-3);
+V1=getValue("Mean");
+roiManager("select",roiManager("count")-1);
+V2=getValue("Mean");
+
+SRG = abs(V1); print("SRG", SRG);
+close();
+close("Temp");
+
+//SBY
+selectImage("LAB");
+setSlice(3);
+run("Duplicate...", "title=Temp");
+run("Enhance Contrast...", "saturated=0.35 normalize");
+run("Hancock Salience");
+roiManager("select",roiManager("count")-3);
+V1=getValue("Mean");
+roiManager("select",roiManager("count")-1);
+V2=getValue("Mean");
+
+SBY = abs(V1); print("SBY", SBY);
+close();
+close("Temp");
+
+
+
+
+while(roiManager("count") > 0){
+	roiManager("select", 0);
+	roiManager("Delete");
+}
+run("Select None");
+
+
+GenRand[j] = t[0]+"\t"+-1*(SL*2+SP+SE+SRG+SBY)+GabRat/2+"\t"+SCENE+"\t"+SL+"\t"+SP+"\t"+SE+"\t"+SRG+"\t"+SBY+"\t"+GabRat;
+
+close("*");
+}
+
+
+
+
+
+dataFile = File.open(SurvGenNum);
+for(i=0;i<GenRand.length;i++){
+	print(dataFile, GenRand[i]);
+}		
+File.close(dataFile);

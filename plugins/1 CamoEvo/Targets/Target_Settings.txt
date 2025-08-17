@@ -1,0 +1,5 @@
+ID	Shape	Size	Pattern	Centre	minAngle	maxAngle	shader(a)	details(a)	option?	
+DE_Rex	DinoEvo_Rex	150	Dinosaurs	200	0	0	1	1	no	1	yes
+DE_Rex_Achroma	DinoEvo_Rex	150	DinosaursAchroma2	200	0	0	1	1	no	1	yes
+DE_Rex_2	DinoEvo_Rex	150	Dinosaurs2	200	0	0	1	1	no	1	yes
+DE_Rex_3	DinoEvo_Rex	150	Dinosaurs3	200	0	0	1	1	no	1	yes

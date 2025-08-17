@@ -1,0 +1,239 @@
+close("*");
+
+eggAR =0.85+random()*0.15;
+eggPoint=random();
+eggPoint=0;
+
+newImage("Egg", "32-bit ramp", 400, 400, 1);
+run("Rotate 90 Degrees Right");
+
+in = (1-eggPoint)/2;
+run("Multiply...","value=0.3");
+run("Min...","value=in");
+
+
+
+w=300*eggAR;
+h=300;
+
+ty=50;
+by=350;
+
+xpoints=newArray(8);
+ypoints=newArray(8);
+
+for(i=0;i<8;i++){
+s=i*0.25;
+point=(1-eggPoint) + pow(sin(i/8*PI),(0.75))*eggPoint;
+xpoints[i] = 200+sin(s*PI)*w/2*eggAR*point;
+ypoints[i] = 200-cos(s*PI)*h/2;
+}
+
+xpoints[0]=xpoints[0]-1;
+
+makeSelection("point", xpoints, ypoints);
+
+
+
+//run("Set Measurements...", "area mean min scientific redirect=None decimal=9"); // record scientific measurements (maximum precision)
+modelPoints = 10000; //number of points to model on each side of the egg - higher will increase precision but slow processing
+
+Overlay.remove;
+
+imageID = getImageID();
+
+getSelectionCoordinates(xCoords, yCoords);
+
+maxDist = 0;
+
+for(i=0; i<xCoords.length; i++){
+	for(j=0; j<xCoords.length; j++){
+		distance = pow(pow(xCoords[i]-xCoords[j],2)+pow(yCoords[i]-yCoords[j],2),0.5);
+		if(distance>maxDist){
+			maxDist = pow(pow(xCoords[i]-xCoords[j],2)+pow(yCoords[i]-yCoords[j],2),0.5);
+			aFurthest = i;
+			bFurthest = j;
+		}
+	}
+}
+
+xAnchor = xCoords[aFurthest];
+yAnchor = yCoords[aFurthest];
+xAnchorEnd = xCoords[bFurthest];
+yAnchorEnd = yCoords[bFurthest];
+if(yCoords[bFurthest]<yCoords[aFurthest]){
+	xAnchor = xCoords[bFurthest]; // set anchor to the largest y-value
+	yAnchor = yCoords[bFurthest];
+	xAnchorEnd = xCoords[aFurthest];
+	yAnchorEnd = yCoords[aFurthest];
+}
+
+eggGrad = (yAnchorEnd-yAnchor)/(xAnchorEnd-xAnchor);
+eggInter1 = yAnchor - (eggGrad*xAnchor);//b
+eggInter2 = yAnchorEnd - (eggGrad*xAnchorEnd);//g
+eggInter = (eggInter1+eggInter2)/2; // averaged due to rounding errors
+
+residGrad = -1/eggGrad;
+
+residCentreX = newArray(xCoords.length); //distance from aFurthest
+residCentreY = newArray(xCoords.length); //distance from central line (residuals), all positive
+
+for(i=0; i<xCoords.length; i++){
+	residInter = yCoords[i] - (residGrad*xCoords[i]); //intercept of residual line
+	residCentreX[i] = -(residInter-eggInter)/(residGrad-eggGrad);
+	residCentreY[i] = residCentreX[i] *residGrad + residInter;
+}
+
+
+//PLOTTING:
+
+setColor(200,0,0);
+setLineWidth(0.5);
+Overlay.drawLine(xAnchor,yAnchor,xAnchorEnd,yAnchorEnd);
+for(i=0; i<xCoords.length; i++)
+	Overlay.drawLine(xCoords[i],yCoords[i],residCentreX[i],residCentreY[i]);
+
+
+
+// MODELLING EGG SHAPE: 
+
+eggLength = pow(pow(xCoords[bFurthest]-xCoords[aFurthest],2)  + pow(yCoords[bFurthest]-yCoords[aFurthest],2),0.5);
+
+// add initial points (the distance from the anchor ot the anchor)
+
+rightEggXvals = newArray(eggLength, 0); // distance from end of egg to intercept on the central line (e.g. like a regression)
+rightEggYvals = newArray(0,0); // distance from centre line of egg to point (e.g. like a residual)
+leftEggXvals = newArray(eggLength, 0);
+leftEggYvals = newArray(0,0);
+
+
+for(i=0; i<xCoords.length; i++){
+
+	if(i != aFurthest){// makes sure the two end points aren't included
+	if(i != bFurthest){
+
+
+	if(residCentreX[i]<=xCoords[i]){ //right egg distances from end of egg and central regression line
+		rightEggXvals = Array.concat(rightEggXvals, pow(pow(residCentreX[i]-xAnchor,2)  + pow(residCentreY[i]-yAnchor,2),0.5)   );
+		rightEggYvals = Array.concat(rightEggYvals, pow(pow(residCentreX[i]-xCoords[i],2)  + pow(residCentreY[i]-yCoords[i],2),0.5)   );
+	}
+
+	if(residCentreX[i]>=xCoords[i]){ //left egg
+		leftEggXvals = Array.concat(leftEggXvals, pow(pow(residCentreX[i]-xAnchor,2)  + pow(residCentreY[i]-yAnchor,2),0.5)   );
+		leftEggYvals = Array.concat(leftEggYvals, pow(pow(residCentreX[i]-xCoords[i],2)  + pow(residCentreY[i]-yCoords[i],2),0.5)   );
+	}
+
+	}// if b
+	}// if a
+}
+
+
+// FITTING EGG SHAPE MODEL
+
+eggEquation = "y= (a*EXP(-1*((x*x)/(2*b*b))+((c*x)/(b*b))-((c*c)/(2*b*b)))*pow(1-x,0.5)*pow(x,0.5))/("+PI+"*b) "; //this is the equation if the length of the egg=1
+
+guesses = newArray(5,1,0.5);
+
+
+rightEggXvalsProp = newArray(rightEggXvals.length); // values scaled down so length = 1 (this makes the model formula more simple & easy to fit from initial values)
+rightEggYvalsProp = newArray(rightEggXvals.length);
+leftEggXvalsProp = newArray(leftEggXvals.length);
+leftEggYvalsProp = newArray(leftEggXvals.length);
+
+for(i=0; i<rightEggXvals.length; i++){
+	rightEggXvalsProp[i] = rightEggXvals[i]/eggLength;
+	rightEggYvalsProp[i] = rightEggYvals[i]/eggLength;
+}
+
+for(i=0; i<leftEggXvals.length; i++){
+	leftEggXvalsProp[i] = leftEggXvals[i]/eggLength;
+	leftEggYvalsProp[i] = leftEggYvals[i]/eggLength;
+}
+
+
+// GENERATING SELECTION COORDINATES:
+
+// FITTING RIGHT EGG:
+Fit.doFit(eggEquation, rightEggXvalsProp, rightEggYvalsProp, guesses);
+
+rA = Fit.p(0);
+rB = Fit.p(1);
+rC = Fit.p(2);
+
+rightR2 = Fit.rSquared;
+rightModelX = newArray(modelPoints+1);
+rightModelY = newArray(modelPoints+1);
+rightRadius = newArray(modelPoints+1); //for use in volume calculations later
+eggX = newArray(modelPoints+1); //for use in volume calculations later
+
+for(i=0; i<modelPoints+1; i++){
+	rightModelX[i] = i/modelPoints; // 0 to 1
+	rightModelY[i] = Fit.f(i/modelPoints);
+	rightRadius[i]=Fit.f(i/modelPoints);
+	eggX[i] = i/modelPoints;
+}
+
+// FITTING LEFT EGG
+Fit.doFit(eggEquation, leftEggXvalsProp, leftEggYvalsProp, guesses);
+
+lA = Fit.p(0);
+lB = Fit.p(1);
+lC = Fit.p(2);
+
+leftR2 = Fit.rSquared;
+leftModelX = newArray(modelPoints+1);
+leftModelY = newArray(modelPoints+1);
+leftRadius = newArray(modelPoints+1); //for use in volume calculations later
+
+for(i=0; i<modelPoints+1; i++){
+	leftModelX[modelPoints-i] = i/modelPoints; // 1 to 0 (so they can be connected later)
+	leftModelY[modelPoints-i] = Fit.f(i/modelPoints);
+	leftRadius[i]=Fit.f(i/modelPoints);
+}
+
+
+
+//TRANSFORMING MODEL BACK TO PIXELS:
+
+
+if(eggGrad<0)
+	eggAngle = atan(-eggGrad);
+if(eggGrad>0)
+	eggAngle = atan(-eggGrad)+PI;
+
+
+// rotate & scale the model fits
+for(i=0; i<modelPoints+1; i++){
+
+	x = rightModelX[i]; // right egg
+	y = rightModelY[i];
+	rightModelX[i] = xAnchor-(x*cos(eggAngle)-y*sin(eggAngle)) * eggLength;
+	rightModelY[i] = (x*sin(eggAngle)+y*cos(eggAngle)) * eggLength + yAnchor;
+
+	x = leftModelX[i]; // left egg
+	y = leftModelY[i];
+	leftModelX[i] = xAnchor-(x*cos(eggAngle)+y*sin(eggAngle)) * eggLength;
+	leftModelY[i] = (x*sin(eggAngle)- y*cos(eggAngle)) * eggLength + yAnchor;
+}//i
+
+
+
+allPointsX = Array.concat(rightModelX, leftModelX);
+allPointsY = Array.concat(rightModelY, leftModelY);
+
+
+selectImage(imageID);
+
+makeSelection("freehand", allPointsX, allPointsY);
+getSelectionCoordinates(xCoords, yCoords);
+run("Set...","value=1");
+run("Gaussian Blur...", "sigma=150");
+run("Gaussian Blur...", "sigma=50");
+run("Gaussian Blur...", "sigma=12.5");
+run("Enhance Contrast...", "saturated=0.3 normalize");
+run("Make Inverse");
+run("Set...","value=0");
+run("Make Inverse");
+run("Multiply...","value=0.35");
+run("Add...","value=0.15");
+

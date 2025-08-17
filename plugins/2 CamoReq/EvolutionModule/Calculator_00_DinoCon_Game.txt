@@ -1,0 +1,325 @@
+PopLocal = getDirectory("plugins") + "2 CamoReq/PopLocation.txt";
+PopLocation = File.openAsString(PopLocal);
+PopLocation=split(PopLocation, "\n");
+PopLocation = PopLocation[0];
+PopLocation = PopLocation;
+
+setBatchMode(true);
+
+CheckDirectory = PopLocation;
+
+GeneratArray = newArray();
+
+GeneratList  =  getFileList(CheckDirectory);
+
+
+
+
+for(i=0; i<GeneratList.length; i++) { // list all .txt files
+
+	if(endsWith(GeneratList[i], "_ranks.txt")==1)
+
+		GeneratArray = Array.concat(GeneratArray, GeneratList[i]);
+}
+
+
+SceneDirectory = CheckDirectory+"Scenes/";
+SceneFolder = getFileList(SceneDirectory);
+SceneList = newArray();
+
+for(j=0;j<SceneFolder.length;j++){
+if(endsWith(SceneFolder[j],"scene.tif")) SceneList = Array.concat(SceneList,SceneFolder[j]);
+}
+
+
+
+screenScales = getDirectory("plugins") + "2 CamoReq/GameModule/screenScales.txt";
+screenSettings = File.openAsString(screenScales);
+screenSettings = split(screenSettings, "\n");
+
+
+interfaceX= parseFloat(screenSettings[0] );
+interfaceY= parseFloat( screenSettings[1] );
+interfaceW= parseFloat( screenSettings[2] );
+interfaceH= parseFloat( screenSettings[3] );
+gameARatio= parseFloat( screenSettings[4] );
+
+interfaceHeight= 1130*1.5;
+interfaceWidth= 1130*gameARatio*1.5;
+
+      shift=1;
+      ctrl=2; 
+      rightButton=4;
+      alt=8;
+      leftButton=16;
+
+
+
+// Functions
+//...........................................................
+function scaleScreen() {
+run("Canvas Size...", "width=&interfaceWidth height=&interfaceHeight position=Center");
+setBatchMode("show");
+setLocation(interfaceX, interfaceY, interfaceW, interfaceH);
+}
+
+
+function waitForLeftClick(slice) {
+im = getTitle();
+run("Select None");
+setTool("arrow");
+noClick=1;
+while(noClick){
+setSlice(slice);
+getCursorLoc(mouseX, mouseY, mouseZ, flag); 
+ if(!isOpen(im)){close("*"); exit}
+if(flag&leftButton!=0){ 
+ 
+ noClick=0;
+ return newArray(mouseX,mouseY);
+}
+wait(75);
+}
+
+}
+
+function waitForLeftClickCountdown(slice,count) {
+im = getTitle();
+run("Select None");
+setTool("arrow");
+
+mouseX=0;
+mouseY=0;
+click=0;
+
+noClick=1;
+t=0;
+while(t<=count){
+setSlice(slice);
+getCursorLoc(mouseX, mouseY, mouseZ, flag); 
+ if(!isOpen(im)){close("*"); exit}
+if(flag&leftButton!=0){ 
+ click=1;
+ noClick=0;
+ t=count;
+}
+wait(50);
+t+=50;
+
+
+setJustification("centre");
+setColor(200*pow(t/count,0.5),0,0);setFont("SansSerif", 50);
+drawString(Math.ceil((count-t)/1000) + " s", getWidth/2, getHeight-30, "#f4f4f4");
+
+}
+ return newArray(mouseX,mouseY,click);
+}
+
+
+function waitForNoClick(slice) {
+run("Select None");
+setTool("arrow");
+Click=1;
+while(Click){
+setSlice(slice);
+getCursorLoc(mouseX, mouseY, mouseZ, flag); 
+if(flag&leftButton!=0){ 
+}else{
+ Click=0;
+}
+wait(75);
+}
+}
+
+
+
+
+nComp = 2;
+
+while(roiManager("count")>0){
+roiManager("select",0);
+roiManager("Delete");
+}
+roiManager("Show None");
+
+ArrayLeng = lengthOf(GeneratArray);
+
+csv = ".txt";
+tif = ".tif";
+txt = ".txt";
+png = ".png";
+
+GenNumber = ArrayLeng;
+GenNum = CheckDirectory + "gen_" + GenNumber + "_genes" + txt;
+GenName = "gen_" + GenNumber  + "_genes" +  txt;
+SurvGenNum = CheckDirectory + "gen_" + GenNumber +"_ranks" + txt;
+
+
+GenStr = File.openAsString(GenNum);
+GenArr = split(GenStr, "\n");
+GenRand=newArray(GenArr.length);
+
+rGenArray1 = Array.getSequence((GenArr.length-1)/2);
+rGenArray2 = Array.getSequence((GenArr.length-1)/2);
+
+randA1 = newArray((GenArr.length-1)/2);
+randA2 = newArray((GenArr.length-1)/2);
+
+
+for(i=0;i<randA1.length;i++){
+randA1[i] = random();
+randA2[i] = random();
+}
+
+Array.sort(randA1,rGenArray1);
+Array.sort(randA2,rGenArray2);
+
+patDIR =CheckDirectory+"GenPat_"+GenNumber+"/";
+
+GenRand[0] = "ID"+"\t"+"Fitness"+"\t"+"Background";
+DemoD = getDirectory("Plugins")+"DinoEvo_Project/Demo/";
+
+setBatchMode(true);
+
+IDarray=newArray();
+Sarray =newArray();
+Fitarray=newArray(GenRand.length-1);
+
+SCENE= 0;
+pS = 0;
+
+for(j=0;j<(GenRand.length-1)/nComp;j++){
+
+
+while(SCENE==pS){
+SCENE = SceneList[floor((SceneList.length-0.00001)*random())];
+}
+
+
+pS = SCENE;
+	open(SceneDirectory + SCENE);
+	rename("Scene"); 
+	run("To ROI Manager");
+	
+	
+	ind = rGenArray1[j]+1;
+	
+	t = split(GenArr[ind], "\t");
+	open(patDIR+t[0]+".tif");
+
+	IDarray = Array.concat(IDarray,t[0]);
+	Sarray = Array.concat(Sarray, SCENE);
+
+	rename("Pattern"); 
+	run("DinoEvo Combine Scene & Pattern");
+
+	rename("Scene_"+0);
+	close("Pattern");
+	
+	ind = rGenArray2[j]+1+(GenRand.length-1)/nComp;
+	
+	t = split(GenArr[ind], "\t");
+	open(patDIR+t[0]+".tif");
+
+	IDarray = Array.concat(IDarray,t[0]);
+	Sarray = Array.concat(Sarray, SCENE);
+
+	rename("Pattern"); 
+	run("DinoEvo Combine Scene & Pattern");
+
+	rename("Scene_"+1);
+	close("Pattern");
+	
+	
+	
+	close("Scene");
+	
+	selectImage("Scene_1");
+	run("Select None");
+	
+	makeRectangle(getWidth()/4, 0, getWidth()/2, getHeight()); run("Crop");
+	
+	setPasteMode("Copy");
+	run("Copy");
+	
+	selectImage("Scene_0");
+	makeRectangle(getWidth()/4, 0, getWidth()/2, getHeight()); run("Crop");
+	run("Add Slice");
+	run("Select None");
+	setSlice(2);
+	run("Paste");
+	
+	
+	run("Make Montage...", "columns=2 rows=1 scale=1");
+	rename("Slide_"+j);
+	
+	close("Scene_0");
+	close("Scene_1");
+
+}
+
+setPasteMode("Copy");
+for(j=1;j<(GenRand.length-1)/nComp;j++){
+selectImage("Slide_"+j);
+run("Copy");
+close();
+selectImage("Slide_0");
+run("Add Slice");
+setSlice(nSlices);
+run("Paste");
+}
+
+
+setSlice(1);
+rename("Scene");
+
+
+open(DemoD+"/Main/02.png");
+scaleScreen();
+
+
+//START
+startGate = 1;
+while(startGate){
+click = waitForLeftClick(1);
+if(click[0] > getWidth()/2){
+startGate=0;
+}
+}
+close();
+
+
+selectImage("Scene");
+scaleScreen();
+
+
+for(j=0;j<IDarray.length/2;j++){
+	click = waitForLeftClickCountdown(j+1,5000);
+	
+	if(click[2] == 1){
+	if(click[0] < getWidth()/2){
+	Fitarray[j*2] = 1;
+	}else{
+	Fitarray[j*2+1] = 1;
+	}
+	}else{
+	Fitarray[j*2] = 1;
+	}
+	
+	waitForNoClick(j+1);
+
+	
+	
+GenRand[1+j*2] = IDarray[j*2]+"\t"+Fitarray[j*2]+"\t"+Sarray[j*2];
+GenRand[2+j*2] = IDarray[j*2+1]+"\t"+Fitarray[j*2+1]+"\t"+Sarray[j*2+1];
+
+}
+
+close("Scene");
+dataFile = File.open(SurvGenNum);
+for(i=0;i<GenRand.length;i++){
+	print(dataFile, GenRand[i]);
+}		
+File.close(dataFile);
+
+setBatchMode(false);

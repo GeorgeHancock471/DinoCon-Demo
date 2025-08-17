@@ -1,0 +1,730 @@
+//Settings
+//...............................................................................
+
+TRAIN ="train/";
+VALIDATE="validate/";
+TEST ="test/";
+
+
+nTrain =2;
+nValidate =3;
+nTest = 3;
+
+retainTrain=0;
+retainValidate=0;
+capGen=0;
+
+
+tW=400;
+
+
+cropScaleW = 600;
+cropScaleH = 600;
+
+saveScaleW = 200;
+saveScaleH = 200;
+
+imgUp = 1; // Upscale Images
+
+
+crx= (cropScaleW*imgUp-tW)/2;
+cry= (cropScaleH*imgUp-tW)/2;
+
+
+scaleNoi = 0;
+pasteNoi =1;
+blurNoi = 0;
+rotateNoi=0;
+blankTrain=0;
+trainMimic=1;
+
+FitMethod = "Avg";
+
+
+
+blurOctaves=newArray(1,1.6,2,3.2,4,6.4,8,12.8);
+
+//blurOctaves=newArray(3.2,4,6.4);
+
+
+blurOctaves=newArray(1,1.6,2,3.2,4,6.4,8);
+
+
+
+// Directory
+//...............................................................................
+
+
+PopLocal = getDirectory("plugins") + "2 CamoReq/PopLocation.txt";
+PopLocation = File.openAsString(PopLocal);
+PopLocation=split(PopLocation, "\n");
+PopLocation = PopLocation[0];
+PopLocation = PopLocation;
+
+
+ModuleLocation = File.getParent(PopLocation);
+ConLocation = ModuleLocation + "/CON_Data/";
+
+ImgF = ConLocation + "Fitness.txt";
+ImgN = ConLocation + "Labels.txt";
+CNN = ConLocation + "CNN_Model";
+
+CNN1 = ConLocation + "CNN_model_gabor1";
+CNN2 = ConLocation + "CNN_Model2";
+
+
+if(File.exists(ImgN)) File.delete(ImgN);
+
+
+
+
+
+
+// Generations
+//...............................................................................
+
+
+CheckDirectory = PopLocation;
+GeneratArray = newArray();
+GeneratList  =  getFileList(CheckDirectory);
+
+
+
+
+for(i=0; i<GeneratList.length; i++) { // list all .txt files
+	if(endsWith(GeneratList[i], "_ranks.txt")==1)
+		GeneratArray = Array.concat(GeneratArray, GeneratList[i]);
+}
+
+ArrayLeng = lengthOf(GeneratArray);
+
+csv = ".txt";
+tif = ".tif";
+txt = ".txt";
+png = ".png";
+
+GenNumber = ArrayLeng;
+GenNum = CheckDirectory + "gen_" + GenNumber + "_genes" + txt;
+GenName = "gen_" + GenNumber  + "_genes" +  txt;
+SurvGenNum = CheckDirectory + "gen_" + GenNumber +"_ranks" + txt;
+
+
+GenStr = File.openAsString(GenNum);
+GenArr = split(GenStr, "\n");
+GenRand = newArray(GenArr.length);
+
+
+patDIR =CheckDirectory+"GenPat_"+GenNumber+"/";
+
+if(File.exists(CNN)&&GenNumber==0) File.delete(CNN);
+if(File.exists(CNN1)&&GenNumber==0) File.delete(CNN1);
+if(File.exists(CNN2)&&GenNumber==0) File.delete(CNN2);
+
+
+
+
+
+
+// Clear and Setup
+//...............................................................................
+
+if(GenNumber==0){retainTrain=0; retainValidate=0;}
+
+
+repS=1;
+
+DirectoryArray=newArray();
+
+for(i=0;i<nTrain;i++) DirectoryArray=Array.concat(DirectoryArray,TRAIN);
+
+for(i=0;i<nValidate;i++) DirectoryArray=Array.concat(DirectoryArray,VALIDATE);
+
+for(i=0;i<nTest;i++) DirectoryArray=Array.concat(DirectoryArray,TEST);
+
+
+CategoryArray = newArray("targets/","blanks/");
+
+
+if(capGen!=0) deleteGen = GenNumber + capGen;
+
+
+
+for(i=0;i<DirectoryArray.length;i++){
+
+	d= ConLocation+DirectoryArray[i];
+
+	if(!File.exists(d)) File.makeDirectory(d);
+
+	gate=1;
+	
+	if(retainTrain==1 && DirectoryArray[i]==TRAIN) gate=0;
+	
+	if(retainValidate==1 && DirectoryArray[i]==VALIDATE) gate=0;
+	
+	if(gate==1){
+
+	if(File.exists(d+CategoryArray[0])){
+
+		flist = getFileList(d+CategoryArray[0]);
+
+			for(j=0;j<flist.length;j++){
+			
+			
+			File.delete(d+CategoryArray[0]+flist[j]);
+			
+
+	}}
+
+
+	if(File.exists(d+CategoryArray[1])){
+
+		flist = getFileList(d+CategoryArray[1]);
+
+			for(j=0;j<flist.length;j++){
+			
+			File.delete(d+CategoryArray[1]+flist[j]);
+
+	}}
+
+	}
+	
+	
+	if(capGen!=0){
+	
+		if(File.exists(d+CategoryArray[0])){
+
+		flist = getFileList(d+CategoryArray[0]);
+
+			if(deleteGen>=0){
+
+			for(j=0;j<flist.length;j++){
+			
+			for(n=0;n<=deleteGen;n++){
+			del = n;
+			
+			if(startsWith(flist[j],"Gen"+del )) File.delete(d+CategoryArray[0]+flist[j]);
+			if(startsWith(flist[j],"Train" )) File.delete(d+CategoryArray[0]+flist[j]);
+			}
+			}
+
+	}}
+
+
+	if(File.exists(d+CategoryArray[1])){
+
+		flist = getFileList(d+CategoryArray[1]);
+
+			if(deleteGen>=0){
+			for(j=0;j<flist.length;j++){
+			
+			for(n=0;n<=deleteGen;n++){
+			del = n;
+			
+			if(startsWith(flist[j],"Gen"+del )) File.delete(d+CategoryArray[1]+flist[j]);
+			if(startsWith(flist[j],"Train" ))  File.delete(d+CategoryArray[1]+flist[j]);
+			}
+			}
+	}}
+	
+	
+	}
+	
+
+
+	if(!File.exists(d+CategoryArray[0])) File.makeDirectory(d+CategoryArray[0]);
+	if(!File.exists(d+CategoryArray[1])) File.makeDirectory(d+CategoryArray[1]);
+
+}
+
+
+
+
+// Clear
+//...............................................................................
+
+close("*");
+
+setBatchMode(true);
+
+while(roiManager("count")>0){
+roiManager("Select", Array.getSequence(roiManager("count")));
+roiManager("delete");
+}
+
+
+
+
+
+if(!File.exists(ImgF)){
+
+
+// Backgrounds
+//...............................................................................
+
+
+BgDirectory = CheckDirectory+"Backgrounds/";
+MdDirectory = CheckDirectory+"Models/";
+TrainBG = CheckDirectory+"Backgrounds_Train/";
+
+File.openSequence(BgDirectory);
+
+run("RGB Color");
+
+bgW = getWidth();
+bgH = getHeight();
+bgS = nSlices();
+
+
+
+
+
+if(File.exists(TrainBG)){
+
+File.openSequence(TrainBG);
+
+run("RGB Color");
+
+bgtW = getWidth();
+bgtH = getHeight();
+bgtS = nSlices();
+
+
+
+}
+
+
+
+// Target ROI
+//...............................................................................
+
+t = split(GenArr[1], "\t");
+open(patDIR+t[0]+".tif");
+run("Select None");
+tW=getWidth();
+run("32-bit");
+setThreshold(1,255);
+run("Create Selection");
+roiManager("Add");
+close();
+
+
+
+
+idArray=newArray((GenArr.length-1)*repS);
+imgArray=newArray((GenArr.length-1)*repS);
+
+
+
+
+// Create Replicates of Targets
+//...............................................................................
+
+c=0;
+
+
+GenRand[0] = "ID"+"\t"+"Fitness";
+for(j=1;j<GenRand.length;j++){
+t = split(GenArr[j], "\t");
+
+open(patDIR+t[0]+".tif");
+
+run("Select All");
+run("Copy");
+
+setPasteMode("Transparent-zero");
+close();
+
+	for(d =0;d<DirectoryArray.length;d++){
+
+		//Random Crop Backgrounds
+		//~~~~~~~~~~~~~~~~~~~~~~~~~
+		W=bgW;
+		H=bgH;
+		S=bgS;
+
+		selectImage("Backgrounds");
+		
+		if(File.exists(TrainBG ) && DirectoryArray[d]!=TEST){
+		if(random()<0.5){
+		selectImage("Backgrounds_Train");
+		W=bgtW;
+		H=bgtH;
+		S=bgtS;
+		}
+		}
+		
+		if(scaleNoi==1){
+		crx= (cropScaleW*imgUp-tW)/2;
+		cry= (cropScaleH*imgUp-tW)/2;
+		}
+		
+		
+
+
+		r=1+(random()*S);
+		setSlice(r);
+		x=random()*(W-cropScaleW);
+		y=random()*(H-cropScaleH);
+
+
+		makeRectangle(x,y,cropScaleW,cropScaleH);
+		if(scaleNoi==1 && DirectoryArray[d] != TEST){
+		noi=(random("gaussian")*(cropScaleH/10));
+		scW=cropScaleW*imgUp+noi;
+		scH=cropScaleH*imgUp+noi;
+		
+		x=random()*(W-scW);
+		y=random()*(H-scH);
+		
+		makeRectangle(x,y,scW,scH);
+		
+		crx= (scW-tW)/2;
+		cry= (scH-tW)/2;
+		}
+		
+
+		run("Duplicate...", "title=Crop");
+		sc2H=getHeight()*imgUp;
+		sc2W=getWidth()*imgUp;
+		run("Size...", "width=&sc2W height=&sc2H depth=1 constrain average interpolation=None");
+		
+		
+		
+		if(DirectoryArray[d] != TEST && blankTrain==1){
+			run("Duplicate...", "title=Blank");
+			run("Size...", "width=&saveScaleW height=&saveScaleH depth=1 constrain average interpolation=None");
+			
+			for(b=0;b<blurOctaves.length;b++){
+			bl=blurOctaves[b];
+			run("Duplicate...", "title=b");
+			run("Gaussian Blur...", "sigma=bl");
+			
+			if(rotateNoi==1&& DirectoryArray[d] != TEST){
+			r=random(); 
+			if(r>0.5 && r<0.75) run("Rotate 90 Degrees Right");
+			if(r>0.25 && r<0.75) run("Rotate 90 Degrees Right");
+			if(r<0.75) run("Rotate 90 Degrees Right");
+			r=random();
+			if(r<0.5) run("Flip Horizontally");
+			}
+			
+			saveAs("Jpeg",  ConLocation+DirectoryArray[d]+CategoryArray[0]+"blank-"+t[0]+"-"+j+"-"+d+"-"+b+".jpg");
+			close();
+			}
+
+			close();
+		}
+		
+		
+		
+		
+		run("Select None");
+		
+		makeRectangle(crx,cry,tW,tW);
+		if(DirectoryArray[d] != TEST && pasteNoi == 1)makeRectangle(crx+(random("gaussian")*(crx/6))*imgUp,cry+(random("gaussian")*(crx/6))*imgUp,tW,tW);
+		if(trainMimic==1) run("Paste");
+		if(DirectoryArray[d] != TRAIN && trainMimic==0) run("Paste");
+		run("Select None");
+		rNOI=random()*20;
+		
+		
+		if(blurNoi==1 && DirectoryArray[d] != TEST){
+		run("Add Specified Noise...", "standard=rNOI");	r= random()*3; run("Gaussian Blur...", "sigma=r");;
+		}
+		
+		run("Size...", "width=&saveScaleW height=&saveScaleH depth=1 constrain average interpolation=None");
+		
+		for(b=0;b<blurOctaves.length;b++){
+		bl=blurOctaves[b];
+		run("Duplicate...", "title=b");
+		run("Gaussian Blur...", "sigma=bl");
+		
+			if(rotateNoi==1&& DirectoryArray[d] != TEST){
+			r=random(); 
+			if(r>0.5 && r<0.75) run("Rotate 90 Degrees Right");
+			if(r>0.25 && r<0.75) run("Rotate 90 Degrees Right");
+			if(r<0.75) run("Rotate 90 Degrees Right");
+			r=random();
+			if(r<0.5) run("Flip Horizontally");
+			}
+		
+		saveAs("Jpeg",  ConLocation+DirectoryArray[d]+CategoryArray[0]+t[0]+"-"+d+"-"+b+".jpg");
+		close();
+		}
+		
+		close();
+	
+
+		if(DirectoryArray[d]==DirectoryArray[DirectoryArray.length-1]){
+		ttl=toString(j)+"-"+d-1+".jpg";
+
+		idArray[c] = t[0];
+		imgArray[c] = ttl;
+		
+		c+=1;
+		}
+
+	}
+
+}//(target loop)
+
+
+
+
+
+// Create Model Targets
+//...............................................................................
+
+if(File.exists(MdDirectory)){
+
+ModelList = getFileList(MdDirectory);
+
+while(ModelList.length < GenRand.length){
+ModelList=Array.concat(ModelList,ModelList);
+}
+
+
+
+for(j=1;j<GenRand.length;j++){
+t = split(ModelList[j], "\t");
+
+open(MdDirectory+t[0]);
+
+run("Select All");
+run("Copy");
+
+setPasteMode("Transparent-zero");
+close();
+
+	for(d =0;d<DirectoryArray.length;d++){
+	if(DirectoryArray[d]!=TEST){
+	
+
+		//Random Crop Backgrounds
+		//~~~~~~~~~~~~~~~~~~~~~~~~~
+		W=bgW;
+		H=bgH;
+		S=bgS;
+
+		selectImage("Backgrounds");
+		
+		if(File.exists(TrainBG ) && DirectoryArray[d]!=TEST){
+		if(random()<0.5){
+		selectImage("Backgrounds_Train");
+		W=bgtW;
+		H=bgtH;
+		S=bgtS;
+		}
+		}
+		
+		if(scaleNoi==1){
+		crx= (cropScaleW*imgUp-tW)/2;
+		cry= (cropScaleH*imgUp-tW)/2;
+		}
+		
+
+
+		r=1+(random()*S);
+		setSlice(r);
+		x=random()*(W-cropScaleW);
+		y=random()*(H-cropScaleH);
+
+
+		makeRectangle(x,y,cropScaleW,cropScaleH);
+		if(scaleNoi==1 && DirectoryArray[d] != TEST){
+		noi=(random("gaussian")*(cropScaleH/10));
+		scW=cropScaleW*imgUp+noi;
+		scH=cropScaleH*imgUp+noi;
+		
+		x=random()*(W-scW);
+		y=random()*(H-scH);
+		
+		makeRectangle(x,y,scW,scH);
+		
+		crx= (scW-tW)/2;
+		cry= (scH-tW)/2;
+		}
+		
+
+		run("Duplicate...", "title=Crop");
+		sc2H=getHeight()*imgUp;
+		sc2W=getWidth()*imgUp;
+		run("Size...", "width=&sc2W height=&sc2H depth=1 constrain average interpolation=None");
+		
+		
+		run("Select None");
+		
+
+		
+		run("Select None");
+		
+		makeRectangle(crx,cry,tW,tW);
+		if(DirectoryArray[d] != TEST && pasteNoi == 1)makeRectangle(crx+(random("gaussian")*(crx/6))*imgUp,cry+(random("gaussian")*(crx/6))*imgUp,tW,tW);
+		run("Paste");
+		run("Select None");
+		rNOI=random()*20;
+		
+		
+		run("Size...", "width=&saveScaleW height=&saveScaleH depth=1 constrain average interpolation=None");
+		
+		for(b=0;b<blurOctaves.length;b++){
+		bl=blurOctaves[b];
+		run("Duplicate...", "title=b");
+		run("Gaussian Blur...", "sigma=bl");
+		
+			if(rotateNoi==1&& DirectoryArray[d] != TEST){
+			r=random(); 
+			if(r>0.5 && r<0.75) run("Rotate 90 Degrees Right");
+			if(r>0.25 && r<0.75) run("Rotate 90 Degrees Right");
+			if(r<0.75) run("Rotate 90 Degrees Right");
+			r=random();
+			if(r<0.5) run("Flip Horizontally");
+			}
+		
+		saveAs("Jpeg",  ConLocation+DirectoryArray[d]+CategoryArray[1]+t[0]+"-"+j+"-"+d+"-"+b+".jpg");
+		close();
+		}
+
+		close();
+
+		if(DirectoryArray[d]==DirectoryArray[DirectoryArray.length-1]){
+		ttl=toString(j)+"-"+d-1+".jpg";
+
+		idArray[c] = t[0];
+		imgArray[c] = ttl;
+		
+		c+=1;
+		}
+
+	}
+	}
+
+}//(target loop)
+}else{
+exit("No Models");
+}
+
+
+
+pasteArray=newArray(imgArray.length);
+for(i=0;i<pasteArray.length;i++){
+pasteArray[i] = imgArray[i]+"\t"+idArray[i];
+}
+
+
+titleArray=newArray("Img","ID");
+pasteArray=Array.concat(String.join(titleArray,"\t"),pasteArray);
+
+
+
+
+	dataFile = File.open(ImgN);
+	for(i=0;i<pasteArray.length;i++){
+		print(dataFile, pasteArray[i]);
+	}		
+	File.close(dataFile);
+	
+	
+	print("DONE");
+	
+	
+	
+//CONVOLUTION Fitness
+//.....................................................	
+	
+if(GenNumber==0 || !File.exists(CNN1)){
+path ="C://Users/dynob/Documents/CamoTensorTests/CamoEvoCON/python/3.7_LAB_Model_Mimic/BAT_CNN_LAB_Primer.bat";
+
+ANACONDA = "C://ANACONDA/Scripts/activate bat";
+exec("cmd", "/c", "start", ANACONDA,path);
+
+}
+
+if(GenNumber==0){
+while(!File.exists(CNN1)){
+print("Saved CNN");
+}
+}
+
+	path ="C://Users/dynob/Documents/CamoTensorTests/CamoEvoCON/python/3.7_LAB_Model_Mimic/BAT_CNN_LAB_Fitness.bat";
+
+	ANACONDA = "C://ANACONDA/Scripts/activate bat";
+	exec("cmd", "/c", "start", ANACONDA,path);
+	
+
+
+while(!File.exists(ImgF)){
+wait(1000);
+}
+}//If Fintess Doesn't Exist
+
+
+
+//Convert Fitness Values
+//.....................................................	
+	
+
+FitSTR = File.openAsString(ImgF);
+
+FitARR = split(FitSTR,"\n");
+
+FitARR=Array.deleteIndex(FitARR,0);
+
+newFitArr = newArray(GenRand.length-1);
+scaleB=newArray(FitARR.length);
+
+for(i=0;i<FitARR.length;i++){
+t = split(FitARR[i],"\t");
+n = split(t[0],"-");
+t[0] = n[0];
+s = String.join(t,"\t");
+FitARR[i] = s;
+scaleB[i]=parseFloat(replace(n[n.length-1],".jpg",""))+1;
+}
+
+
+
+nOct = blurOctaves.length;
+
+for(i=0;i<newFitArr.length;i++){
+if(FitMethod=="Avg") f=0;
+if(FitMethod=="Scale") f=0;
+if(FitMethod=="Min") f=10000;
+
+	for(j=0;j<nTest;j++){
+	for(b=0;b<nOct;b++){
+	t = split(FitARR[((i*nTest*nOct))+j*nTest+b],"\t");
+	n = t[0];
+	if(FitMethod=="Scale") f=f+parseFloat(t[1])/scaleB[((i*nTest*nOct))+j*nTest+b];
+	if(FitMethod=="Avg") f=f+parseFloat(t[1])/nTest/nOct; 
+	if(FitMethod=="Min" && parseFloat(t[1])<f) f = parseFloat(t[1]);
+	}
+	}
+	
+	tmp=newArray(n,f);
+newFitArr[i] = String.join(tmp,"\t");
+}
+
+
+
+
+newFitArr=Array.concat("ID"+"\t"+"fitness",newFitArr);
+
+
+//Array.show(FitARR);
+
+
+	dataFile = File.open(SurvGenNum);
+	for(i=0;i<newFitArr.length;i++){
+		print(dataFile, newFitArr[i]);
+	}		
+	File.close(dataFile);
+	
+	
+	print("DONE");
+	
+
+
+
+if(File.exists(ImgF)) File.delete(ImgF);
+

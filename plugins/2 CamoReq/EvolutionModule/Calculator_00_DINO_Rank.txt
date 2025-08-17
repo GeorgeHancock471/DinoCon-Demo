@@ -1,0 +1,185 @@
+PopLocal = getDirectory("plugins") + "2 CamoReq/PopLocation.txt";
+PopLocation = File.openAsString(PopLocal);
+PopLocation=split(PopLocation, "\n");
+PopLocation = PopLocation[0];
+PopLocation = PopLocation;
+
+setBatchMode(true);
+
+CheckDirectory = PopLocation;
+
+GeneratArray = newArray();
+
+GeneratList  =  getFileList(CheckDirectory);
+
+	setBatchMode(false);
+run("ROI Manager...");
+	setBatchMode(true);
+
+
+
+
+
+
+for(i=0; i<GeneratList.length; i++) { // list all .txt files
+
+	if(endsWith(GeneratList[i], "_ranks.txt")==1)
+
+		GeneratArray = Array.concat(GeneratArray, GeneratList[i]);
+}
+
+
+SceneDirectory = CheckDirectory+"Scenes/";
+SceneFolder = getFileList(SceneDirectory);
+SceneList = newArray();
+
+for(j=0;j<SceneFolder.length;j++){
+if(endsWith(SceneFolder[j],"scene.tif")) SceneList = Array.concat(SceneList,SceneFolder[j]);
+}
+
+
+
+
+
+close("*");
+
+nComp = 4;
+
+
+while(roiManager("count")>0){
+roiManager("select",0);
+roiManager("Delete");
+}
+
+ArrayLeng = lengthOf(GeneratArray);
+
+csv = ".txt";
+tif = ".tif";
+txt = ".txt";
+png = ".png";
+
+GenNumber = ArrayLeng;
+GenNum = CheckDirectory + "gen_" + GenNumber + "_genes" + txt;
+GenName = "gen_" + GenNumber  + "_genes" +  txt;
+SurvGenNum = CheckDirectory + "gen_" + GenNumber +"_ranks" + txt;
+
+
+GenStr = File.openAsString(GenNum);
+GenArr = split(GenStr, "\n");
+GenRand = newArray(GenArr.length);
+
+
+
+patDIR =CheckDirectory+"GenPat_"+GenNumber+"/";
+
+
+
+GenRand[0] = "ID"+"\t"+"Fitness"+"\t"+"Background";
+
+
+randIndex = Array.getSequence(GenArr.length-1);
+randArr =newArray(GenArr.length-1);
+
+for(i=0;i<randIndex.length;i++){
+randArr[i] = random();
+}
+
+Array.sort(randArr,randIndex);
+
+
+Array.show(randIndex);
+
+
+gameScreen= getDirectory("plugins")+"DinoEvo_Project/Game_Screen.png";
+
+open(gameScreen);
+	setBatchMode("show");
+	run("Maximize");
+	run("Select None");
+	setTool("point");
+	while(selectionType==-1){
+	wait(100);
+	}
+close("*");
+
+for(j=1;j<GenRand.length/nComp;j++){
+
+
+	close("*");
+
+
+	SCENE = SceneList[floor((SceneList.length-0.00001)*random())];
+	open(SceneDirectory + SCENE);
+	rename("Scene"); 
+	run("To ROI Manager");
+
+	
+	IDArray=newArray(nComp);
+
+	for(i=0;i<nComp;i++){
+	idx = randIndex[((j-1)*nComp)+i]+1;
+	
+	ind = ((j-1)+i*(GenRand.length/nComp))+1;
+	
+	
+	t = split(GenArr[ind], "\t");
+	open(patDIR+t[0]+".tif");
+
+	IDArray[i]=t[0];
+
+	rename("Pattern"); 
+	run("DinoEvo Combine Scene & Pattern");
+
+	rename("Scene_"+i);
+	close("Pattern");
+	}
+
+	close("Scene");
+
+	run("Images to Stack", "use");
+	
+
+	run("Make Montage...", "columns=2 rows=2 scale=0.5  label");
+	w=getWidth();
+	h=getHeight();
+
+
+	setBatchMode("show");
+	run("Maximize");
+
+	run("Select None");
+	setTool("point");
+	while(selectionType==-1){
+	wait(100);
+	}
+
+
+	fitnessArray=newArray(nComp);
+	Roi.getCoordinates(x,y);
+
+	if(x[0]<w/2 && y[0]<h/2) fitnessArray[0] = 1;
+	if(x[0]<w/2 && y[0]>h/2) fitnessArray[2] = 1;
+	if(x[0]>w/2 && y[0]<h/2) fitnessArray[1] = 1;
+	if(x[0]>w/2 && y[0]>h/2) fitnessArray[3] = 1;
+
+	Array.show(fitnessArray);
+
+
+	for(i=0;i<nComp;i++){
+	GenRand[((j-1)*nComp)+i+1] = IDArray[i]+"\t"+fitnessArray[i]+"\t"+SCENE;
+	}
+	
+	
+
+	close("*");
+}
+
+
+
+
+
+dataFile = File.open(SurvGenNum);
+for(i=0;i<GenRand.length;i++){
+	print(dataFile, GenRand[i]);
+}		
+File.close(dataFile);
